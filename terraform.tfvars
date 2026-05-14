@@ -27,7 +27,7 @@ log_retention_days = 365
 # then apply. Scale down old active only after validating the new one.
 active_color        = "blue"
 blue_desired_count  = 1
-green_desired_count = 0
+green_desired_count = 1
 blue_version        = "1.0.0"
 green_version       = "2.0.0"
 
