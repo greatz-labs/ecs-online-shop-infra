@@ -111,13 +111,6 @@ variable "green_version" {
   default     = "2.0.0"
 }
 
-# ── ALB ───────────────────────────────────────────────────────────────────────
-
-variable "certificate_arn" {
-  description = "ACM certificate ARN. Leave empty for HTTP-only (lab default)."
-  type        = string
-  default     = ""
-}
 
 # ── Module toggles ────────────────────────────────────────────────────────────
 

@@ -31,9 +31,6 @@ green_desired_count = 0
 blue_version        = "1.0.0"
 green_version       = "2.0.0"
 
-# ── ALB ───────────────────────────────────────────────────────────────────────
-certificate_arn = "" # set to ACM cert ARN to enable HTTPS
-
 # ── Module toggles ────────────────────────────────────────────────────────────
 # Enable in order: ecr → push image → cluster + iam + alb + ecs
 create_vpc     = true
