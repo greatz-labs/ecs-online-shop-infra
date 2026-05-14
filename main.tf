@@ -25,6 +25,13 @@ provider "aws" {
   }
 }
 
+data "aws_acm_certificate" "this" {
+  statuses = ["ISSUED"]
+  tags = {
+    Name = "Greatzlabs.com"
+  }
+}
+
 # ── VPC ───────────────────────────────────────────────────────────────────────
 
 module "vpc" {
@@ -75,7 +82,7 @@ module "alb" {
   vpc_id            = try(module.vpc[0].vpc_id, "")
   public_subnet_ids = try(module.vpc[0].public_subnet_ids, [])
   container_port    = var.container_port
-  certificate_arn   = var.certificate_arn
+  certificate_arn   = data.aws_acm_certificate.this.arn
   active_color      = var.active_color
   health_check_path = var.health_check_path
   tags              = var.tags
