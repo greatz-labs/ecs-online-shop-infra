@@ -22,11 +22,11 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502  # v4.0.2
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54531b9bcd9f45cb21f7bb81c96e90a72c9a  # v3.1.2
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3.1.2
         with:
           terraform_version: "~1.5"
 
@@ -45,38 +45,79 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+        run: terraform plan -no-color -input=false 2>&1 | tee /tmp/plan.txt
         continue-on-error: true
 
-      - name: Post plan to PR
+      - name: Parse plan summary
+        if: always()
+        run: |
+          set +e
+          totals=$(grep "^Plan:" /tmp/plan.txt || echo "No changes detected.")
+
+          extract() { grep -E "^\s+# .+$1" /tmp/plan.txt | sed "s/^\s*# //;s/ $1//" | sort; }
+          added=$(extract "will be created")
+          changed=$(extract "will be updated in-place")
+          replaced=$(extract "must be replaced")
+          destroyed=$(extract "will be destroyed")
+
+          fmt_section() {
+            local label="$1" items="$2"
+            [ -z "$items" ] && return
+            local count; count=$(echo "$items" | wc -l | tr -d ' ')
+            echo "**${label} (${count})**"
+            echo "$items" | sed 's/^/  /'
+            echo ""
+          }
+
+          {
+            echo "$totals"
+            echo ""
+            fmt_section "+ Add"     "$added"
+            fmt_section "~ Change"  "$changed"
+            fmt_section "! Replace" "$replaced"
+            fmt_section "- Destroy" "$destroyed"
+          } > /tmp/plan_summary.txt
+
+      - name: Post plan to PR comment
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
         with:
           script: |
-            const fs   = require('fs');
-            const plan = fs.readFileSync('plan_output.txt', 'utf8');
+            const fs      = require('fs');
+            const raw     = fs.readFileSync('/tmp/plan.txt', 'utf8');
+            const summary = fs.existsSync('/tmp/plan_summary.txt')
+              ? fs.readFileSync('/tmp/plan_summary.txt', 'utf8').trim()
+              : '';
+            const MAX  = 60000;
+            const plan = raw.length > MAX
+              ? raw.slice(0, MAX) + '\n\n... output truncated (> 60k chars) ...'
+              : raw;
 
             const fmtIcon      = '${{ steps.fmt.outcome }}'      === 'success' ? '✅' : '⚠️';
             const validateIcon = '${{ steps.validate.outcome }}' === 'success' ? '✅' : '❌';
-            const planIcon     = '${{ steps.plan.outcome }}'     === 'success' ? '✅' : '❌';
+            const outcome      = '${{ steps.plan.outcome }}';
+            const icon         = outcome === 'success' ? '✅' : '❌';
 
             const body = [
               '<!-- tf-plan-comment -->',
-              `#### Terraform Plan — \`${{ github.head_ref }}\``,
+              `#### ${icon} Terraform Plan — \`${{ github.head_ref }}\``,
               '',
               `| | Check | Result |`,
               `|---|---|---|`,
               `| ${fmtIcon} | \`terraform fmt\` | \`${{ steps.fmt.outcome }}\` |`,
               `| ${validateIcon} | \`terraform validate\` | \`${{ steps.validate.outcome }}\` |`,
-              `| ${planIcon} | \`terraform plan\` | \`${{ steps.plan.outcome }}\` |`,
+              `| ${icon} | \`terraform plan\` | \`${outcome}\` |`,
               '',
-              '<details><summary>Show Plan</summary>',
+              summary,
               '',
-              '```terraform',
-              plan.length > 60000 ? plan.slice(0, 60000) + '\n...(truncated)' : plan,
+              '<details><summary>Show full plan output</summary>',
+              '',
+              '```hcl',
+              plan,
               '```',
+              '',
               '</details>',
               '',
-              `> commit \`${{ github.sha }}\` · @${{ github.actor }}`,
+              `> **Status:** \`${outcome}\` · commit \`${{ github.sha }}\` · @${{ github.actor }}`,
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
@@ -102,6 +143,14 @@ jobs:
                 body,
               });
             }
+
+      - name: Write plan to job summary
+        if: always()
+        run: |
+          echo '### Terraform Plan' >> "$GITHUB_STEP_SUMMARY"
+          echo '```hcl' >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/plan.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail if plan failed
         if: steps.plan.outcome == 'failure' || steps.validate.outcome == 'failure'
