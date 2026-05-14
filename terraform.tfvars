@@ -25,7 +25,7 @@ log_retention_days = 365
 # ── Blue-Green ────────────────────────────────────────────────────────────────
 # Cutover: change active_color + bump standby desired_count to match active,
 # then apply. Scale down old active only after validating the new one.
-active_color        = "blue"
+active_color        = "green"
 blue_desired_count  = 1
 green_desired_count = 1
 blue_version        = "1.0.0"
