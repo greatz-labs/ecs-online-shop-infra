@@ -1,0 +1,23 @@
+# Terraform state — never commit
+*.tfstate
+*.tfstate.backup
+*.tfplan
+
+# Terraform working directory
+.terraform/
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files — local only
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Sensitive variable files
+*.auto.tfvars
+secrets.tfvars
+
+# Lock file should be committed — do NOT add .terraform.lock.hcl here
