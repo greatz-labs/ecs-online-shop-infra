@@ -92,9 +92,10 @@ jobs:
               ? raw.slice(0, MAX) + '\n\n... output truncated (> 60k chars) ...'
               : raw;
 
-            const fmtIcon = '${{ steps.fmt.outcome }}' === 'success' ? '✅' : '⚠️';
-            const outcome = '${{ steps.plan.outcome }}';
-            const icon    = outcome === 'success' ? '✅' : '❌';
+            const fmtIcon      = '${{ steps.fmt.outcome }}'      === 'success' ? '✅' : '⚠️';
+            const validateIcon = '${{ steps.validate.outcome }}' === 'success' ? '✅' : '❌';
+            const outcome      = '${{ steps.plan.outcome }}';
+            const icon         = outcome === 'success' ? '✅' : '❌';
 
             const body = [
               '<!-- tf-plan-comment -->',
@@ -103,7 +104,7 @@ jobs:
               `| | Check | Result |`,
               `|---|---|---|`,
               `| ${fmtIcon} | \`terraform fmt\` | \`${{ steps.fmt.outcome }}\` |`,
-              `| ${{ steps.validate.outcome === 'success' && '✅' || '❌' }} | \`terraform validate\` | \`${{ steps.validate.outcome }}\` |`,
+              `| ${validateIcon} | \`terraform validate\` | \`${{ steps.validate.outcome }}\` |`,
               `| ${icon} | \`terraform plan\` | \`${outcome}\` |`,
               '',
               summary,
